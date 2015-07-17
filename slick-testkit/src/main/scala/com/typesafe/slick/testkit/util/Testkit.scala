@@ -238,6 +238,11 @@ abstract class AsyncTest[TDB >: Null <: TestDB](implicit TdbClass: ClassTag[TDB]
   def ifNotCapF[R](caps: Capability*)(f: => Future[R]): Future[Unit] =
     if(!caps.forall(c => tdb.capabilities.contains(c))) f.map(_ => ()) else Future.successful(())
 
+  def ifCapU[T](caps: Capability*)(f: => T): Unit =
+    if(caps.forall(c => tdb.capabilities.contains(c))) f
+  def ifNotCapU[T](caps: Capability*)(f: => T): Unit =
+    if(!caps.forall(c => tdb.capabilities.contains(c))) f
+
   def asAction[R](f: tdb.profile.Backend#Session => R): DBIOAction[R, NoStream, Effect] =
     new SynchronousDatabaseAction[R, NoStream, tdb.profile.Backend, Effect] {
       def run(context: tdb.profile.Backend#Context): R = f(context.session)
@@ -329,6 +334,12 @@ abstract class AsyncTest[TDB >: Null <: TestDB](implicit TdbClass: ClassTag[TDB]
     def shouldNotBe(o: Any): Unit = fixStack(Assert.assertNotSame(o, v))
 
     def should(f: T => Boolean): Unit = fixStack(Assert.assertTrue(f(v)))
+
+    def shouldFail(f: T => Unit): Unit = {
+      var ok = false
+      try { f(v); ok = true } catch { case t: Throwable => }
+      if(ok) fixStack(Assert.fail("Expected failure"))
+    }
 
     def shouldBeA[T](implicit ct: ClassTag[T]): Unit = {
       if(!ct.runtimeClass.isInstance(v))

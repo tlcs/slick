@@ -163,13 +163,7 @@ trait SqlExecutorComponent extends BasicExecutorComponent { driver: SqlDriver =>
 trait SqlTableComponent extends RelationalTableComponent { driver: SqlDriver =>
 
   trait ColumnOptions extends super.ColumnOptions {
-    @deprecated("Use SqlType instead of DBType", "3.0")
-    def DBType(dbType: String) = SqlProfile.ColumnOption.SqlType(dbType)
     def SqlType(typeName: String) = SqlProfile.ColumnOption.SqlType(typeName)
-    @deprecated("Use a non-Option type for the column definition", "3.0")
-    val NotNull = SqlProfile.ColumnOption.NotNull
-    @deprecated("Use an Option type for the column definition", "3.0")
-    val Nullable = SqlProfile.ColumnOption.Nullable
   }
 
   override val columnOptions: ColumnOptions = new ColumnOptions {}

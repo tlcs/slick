@@ -40,29 +40,6 @@ trait JdbcProfile extends SqlProfile with JdbcActionComponent
     implicit def jdbcFastPathExtensionMethods[T, P](mp: MappedProjection[T, P]) = new JdbcFastPathExtensionMethods[T, P](mp)
   }
 
-  protected trait LowPriorityImplicits {
-    implicit def queryToAppliedQueryInvoker[U, C[_]](q: Query[_,U, C]): QueryInvoker[U] = createQueryInvoker[U](queryCompiler.run(q.toNode).tree, (), null)
-    implicit def queryToUpdateInvoker[U, C[_]](q: Query[_, U, C]): UpdateInvoker[U] = createUpdateInvoker(updateCompiler.run(q.toNode).tree, ())
-  }
-
-  trait Implicits extends LowPriorityImplicits with super.Implicits with CommonImplicits {
-    implicit def ddlToDDLInvoker(d: DDL): DDLInvoker = createDDLInvoker(d)
-    implicit def queryToDeleteInvoker[C[_]](q: Query[_ <: Table[_], _, C]): DeleteInvoker = createDeleteInvoker(deleteCompiler.run(q.toNode).tree, ())
-    implicit def runnableCompiledToAppliedQueryInvoker[RU, C[_]](c: RunnableCompiled[_ <: Query[_, _, C], C[RU]]): QueryInvoker[RU] = createQueryInvoker[RU](c.compiledQuery, c.param, null)
-    implicit def runnableCompiledToUpdateInvoker[RU, C[_]](c: RunnableCompiled[_ <: Query[_, _, C], C[RU]]): UpdateInvoker[RU] =
-      createUpdateInvoker(c.compiledUpdate, c.param)
-    implicit def runnableCompiledToDeleteInvoker[RU, C[_]](c: RunnableCompiled[_ <: Query[_, _, C], C[RU]]): DeleteInvoker =
-      createDeleteInvoker(c.compiledDelete, c.param)
-
-    // This conversion only works for fully packed types
-    implicit def productQueryToUpdateInvoker[T, C[_]](q: Query[_ <: Rep[T], T, C]): UpdateInvoker[T] =
-      createUpdateInvoker(updateCompiler.run(q.toNode).tree, ())
-  }
-
-  trait SimpleQL extends super.SimpleQL with Implicits {
-    type FastPath[T] = JdbcFastPath[T]
-  }
-
   trait LowPriorityAPI {
     implicit def queryUpdateActionExtensionMethods[U, C[_]](q: Query[_, U, C]): UpdateActionExtensionMethodsImpl[U] =
       createUpdateActionExtensionMethods(updateCompiler.run(q.toNode).tree, ())
@@ -87,10 +64,6 @@ trait JdbcProfile extends SqlProfile with JdbcActionComponent
     implicit def actionBasedSQLInterpolation(s: StringContext) = new ActionBasedSQLInterpolation(s)
   }
 
-  @deprecated("Use 'api' instead of 'simple' or 'Implicit' to import the new API", "3.0")
-  val simple: SimpleQL = new SimpleQL {}
-  @deprecated("Use 'api' instead of 'simple' or 'Implicit' to import the new API", "3.0")
-  lazy val Implicit: Implicits = simple
   val api: API = new API {}
 }
 
@@ -141,8 +114,3 @@ trait JdbcDriver extends SqlDriver
 
   override val profile: JdbcProfile = this
 }
-
-/** A generic driver for JDBC-based databases. This can be used as a fallback
-  * when a specific driver for a database is not available. */
-@deprecated("JdbcDriver provides a generic implementation that needs to be customized for specific database systems; Use a concrete driver or implement and customize JdbcDriver yourself", "3.0.0")
-object JdbcDriver extends JdbcDriver

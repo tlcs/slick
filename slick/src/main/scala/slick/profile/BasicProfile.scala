@@ -13,7 +13,7 @@ import slick.util.GlobalConfig
 /**
  * The basic functionality that has to be implemented by all drivers.
  */
-trait BasicProfile extends BasicInvokerComponent with BasicInsertInvokerComponent with BasicExecutorComponent with BasicActionComponent { driver: BasicDriver =>
+trait BasicProfile extends BasicInsertInvokerComponent with BasicExecutorComponent with BasicActionComponent { driver: BasicDriver =>
 
   /** The back-end type required by this profile */
   type Backend <: DatabaseComponent
@@ -51,19 +51,6 @@ trait BasicProfile extends BasicInvokerComponent with BasicInsertInvokerComponen
     type SlickException = slick.SlickException
   }
 
-  trait Implicits extends CommonImplicits {
-    implicit def ddlToDDLInvoker(d: SchemaDescription): DDLInvoker
-
-    implicit def repToQueryExecutor[U](rep: Rep[U]): QueryExecutor[U] = createQueryExecutor[U](queryCompiler.run(rep.toNode).tree, ())
-    implicit def runnableCompiledToQueryExecutor[RU](c: RunnableCompiled[_, RU]): QueryExecutor[RU] = createQueryExecutor[RU](c.compiledQuery, c.param)
-    implicit def streamableCompiledToInsertInvoker[EU](c: StreamableCompiled[_, _, EU]): InsertInvoker[EU] = createInsertInvoker[EU](c.compiledInsert.asInstanceOf[CompiledInsert])
-    // This only works on Scala 2.11 due to SI-3346:
-    implicit def recordToQueryExecutor[M, R](q: M)(implicit shape: Shape[_ <: FlatShapeLevel, M, R, _]): QueryExecutor[R] = createQueryExecutor[R](queryCompiler.run(shape.toNode(q)).tree, ())
-    implicit def queryToInsertInvoker[U, C[_]](q: Query[_, U, C]) = createInsertInvoker[U](compileInsert(q.toNode))
-  }
-
-  trait SimpleQL extends CommonAPI with Implicits
-
   trait API extends CommonAPI with CommonImplicits {
     implicit def repQueryActionExtensionMethods[U](rep: Rep[U]): QueryActionExtensionMethods[U, NoStream] =
       createQueryActionExtensionMethods[U, NoStream](queryCompiler.run(rep.toNode).tree, ())
@@ -80,19 +67,6 @@ trait BasicProfile extends BasicInvokerComponent with BasicInsertInvokerComponen
     implicit def recordQueryActionExtensionMethods[M, R](q: M)(implicit shape: Shape[_ <: FlatShapeLevel, M, R, _]): QueryActionExtensionMethods[R, NoStream] =
       createQueryActionExtensionMethods[R, NoStream](queryCompiler.run(shape.toNode(q)).tree, ())
   }
-
-  /** A collection of values for using the query language with a single import
-    * statement. This provides the driver's implicits, the Database and
-    * Session objects for DB connections, and commonly used query language
-    * types and objects. */
-  @deprecated("Use 'api' instead of 'simple' or 'Implicit' to import the new API", "3.0")
-  val simple: SimpleQL
-
-  /** The implicit values and conversions provided by this driver.
-    * This is a subset of ``simple``. You usually want to import
-    * `simple._` instead of using `Implicit`. */
-  @deprecated("Use 'api' instead of 'simple' or 'Implicit' to import the new API", "3.0")
-  val Implicit: Implicits
 
   /** The API for using the query language with a single import
     * statement. This provides the driver's implicits, the Database and
@@ -148,23 +122,6 @@ trait BasicDriver extends BasicProfile {
         if(parents.isEmpty) None else findConfigName(parents)
       }
     GlobalConfig.driverConfig(findConfigName(Vector(getClass)).get)
-  }
-}
-
-trait BasicInvokerComponent { driver: BasicDriver =>
-
-  /** Create a DDLInvoker -- this method should be implemented by drivers as needed */
-  def createDDLInvoker(ddl: SchemaDescription): DDLInvoker
-
-  /** Pseudo-invoker for running DDL statements. */
-  trait DDLInvoker {
-    /** Create the entities described by this DDL object */
-    def create(implicit session: Backend#Session): Unit
-
-    /** Drop the entities described by this DDL object */
-    def drop(implicit session: Backend#Session): Unit
-
-    def ddlInvoker: this.type = this
   }
 }
 

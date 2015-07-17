@@ -58,8 +58,6 @@ object StaticQuery {
   def updateNA(query: String) =
     new StaticQuery[Unit, Int](query, SetParameter.SetUnit, GetResult.GetUpdateValue)
 
-  @inline implicit def interpolation(s: StringContext) = new SQLInterpolation(s)
-
   /** Automatically apply a parameterless query */
   @inline implicit def staticQueryToInvoker[R](s: StaticQuery[Unit, R]): StaticQueryInvoker[Unit, R] = s(())
 }
@@ -68,54 +66,6 @@ object StaticQuery {
 class StaticQueryInvoker[-P, +R](val getStatement: String, pconv: SetParameter[P], param: P, rconv: GetResult[R]) extends StatementInvoker[R] {
   protected def setParam(st: PreparedStatement) = pconv(param, new PositionedParameters(st))
   protected def extractValue(rs: PositionedResult): R = rconv(rs)
-}
-
-@deprecated("Use the new Action-based Plain SQL API from driver.api instead", "3.0")
-class SQLInterpolation(val s: StringContext) extends AnyVal {
-  /** Build a SQLInterpolationResult via string interpolation */
-  def sql(param: Any*) = macro SQLInterpolation.sqlImpl
-  /** Build a StaticQuery for an UPDATE statement via string interpolation */
-  def sqlu(param: Any*) = macro SQLInterpolation.sqluImpl
-}
-
-/**
- * Implementation of SQLInterpolation macros based on code in TypedStaticQuery object
- */
-object SQLInterpolation {
-  def sqlImpl(ctxt: Context)(param: ctxt.Expr[Any]*): ctxt.Expr[SQLInterpolationResult] = {
-    import ctxt.universe._
-    val macroTreeBuilder = new MacroTreeBuilder[ctxt.type](ctxt)(param.toList)
-    reify {
-      SQLInterpolationResult(
-        ctxt.Expr[Seq[Any]]          (macroTreeBuilder.queryParts).splice,
-        ctxt.Expr[SetParameter[Unit]](macroTreeBuilder.pconvTree).splice
-      )
-    }
-  }
-
-  def sqluImpl(ctxt: Context)(param: ctxt.Expr[Any]*): ctxt.Expr[StaticQuery[Unit, Int]] = {
-    import ctxt.universe._
-    val macroTreeBuilder = new MacroTreeBuilder[ctxt.type](ctxt)(param.toList)
-    reify {
-      val res: SQLInterpolationResult = SQLInterpolationResult(
-        ctxt.Expr[Seq[Any]]          (macroTreeBuilder.queryParts).splice,
-        ctxt.Expr[SetParameter[Unit]](macroTreeBuilder.pconvTree).splice
-      )
-      res.asUpdate
-    }
-  }
-}
-
-/**
- * Results of SQLInterpolation macros is SQLInterpolationResult objects
- */
-@deprecated("Use the new Action-based Plain SQL API from driver.api instead", "3.0")
-case class SQLInterpolationResult(queryParts: Seq[Any], sp: SetParameter[Unit]) {
-  private[this] val query =
-    if(queryParts.length == 1 && queryParts(0).isInstanceOf[String]) queryParts(0).asInstanceOf[String]
-    else queryParts.iterator.map(String.valueOf).mkString
-  def as[R](implicit rconv: GetResult[R]): StaticQuery[Unit, R] = new StaticQuery[Unit, R](query, sp, rconv)
-  def asUpdate = as[Int](GetResult.GetUpdateValue)
 }
 
 ////////////////////////////////////////////////////////////////////////////////// Action-based API

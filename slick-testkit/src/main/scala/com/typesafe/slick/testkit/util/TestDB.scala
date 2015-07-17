@@ -10,7 +10,7 @@ import scala.collection.mutable
 import scala.concurrent.{Await, Future, ExecutionContext}
 import slick.SlickException
 import slick.dbio.{NoStream, DBIOAction, DBIO}
-import slick.jdbc.{StaticQuery => Q, ResultSetAction, JdbcDataSource, SimpleJdbcAction, ResultSetInvoker}
+import slick.jdbc.{StaticQuery => Q, ResultSetAction, JdbcDataSource, SimpleJdbcAction}
 import slick.jdbc.GetResult._
 import slick.driver._
 import slick.profile.{SqlDriver, RelationalDriver, BasicDriver, Capability}
@@ -150,17 +150,17 @@ abstract class JdbcTestDB(val confName: String) extends SqlTestDB {
   type Driver = JdbcDriver
   lazy val database = profile.backend.Database
   val jdbcDriver: String
-  final def getLocalTables(implicit session: profile.Backend#Session) =
-    blockingRunOnSession(ec => localTables(ec))
+  final def getLocalTables(implicit session: profile.Backend#Session) = blockingRunOnSession(ec => localTables(ec))
+  final def getLocalSequences(implicit session: profile.Backend#Session) = blockingRunOnSession(ec => localSequences(ec))
   def canGetLocalTables = true
   def localTables(implicit ec: ExecutionContext): DBIO[Vector[String]] =
     ResultSetAction[(String,String,String, String)](_.conn.getMetaData().getTables("", "", null, null)).map { ts =>
       ts.filter(_._4.toUpperCase == "TABLE").map(_._3).sorted
     }
-  def getLocalSequences(implicit session: profile.Backend#Session) = {
-    val tables = ResultSetInvoker[(String,String,String, String)](_.conn.getMetaData().getTables("", "", null, null))
-    tables.buildColl[List].filter(_._4.toUpperCase == "SEQUENCE").map(_._3).sorted
-  }
+  def localSequences(implicit ec: ExecutionContext): DBIO[Vector[String]] =
+    ResultSetAction[(String,String,String, String)](_.conn.getMetaData().getTables("", "", null, null)).map { ts =>
+      ts.filter(_._4.toUpperCase == "SEQUENCE").map(_._3).sorted
+    }
   def dropUserArtifacts(implicit session: profile.Backend#Session) = {
     for(t <- getLocalTables)
       (Q.u+"drop table if exists "+driver.quoteIdentifier(t)+" cascade").execute

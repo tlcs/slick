@@ -6,7 +6,7 @@ import java.sql.SQLException
 import slick.dbio._
 import slick.driver._
 import slick.memory.MemoryDriver
-import slick.jdbc.{StaticQuery => Q, SimpleJdbcAction, ResultSetAction, ResultSetInvoker}
+import slick.jdbc.{StaticQuery => Q, SimpleJdbcAction, ResultSetAction}
 import slick.jdbc.GetResult._
 import slick.jdbc.meta.MTable
 import org.junit.Assert
@@ -91,10 +91,10 @@ object StandardTestDBs {
       ResultSetAction[(String,String,String, String)](_.conn.getMetaData().getTables("", "public", null, null)).map { ts =>
         ts.filter(_._4.toUpperCase == "TABLE").map(_._3).sorted
       }
-    override def getLocalSequences(implicit session: profile.Backend#Session) = {
-      val tables = ResultSetInvoker[(String,String,String, String)](_.conn.getMetaData().getTables("", "public", null, null))
-      tables.buildColl[List].filter(_._4.toUpperCase == "SEQUENCE").map(_._3).sorted
-    }
+    override def localSequences(implicit ec: ExecutionContext): DBIO[Vector[String]] =
+      ResultSetAction[(String,String,String, String)](_.conn.getMetaData().getTables("", "public", null, null)).map { ts =>
+        ts.filter(_._4.toUpperCase == "SEQUENCE").map(_._3).sorted
+      }
     override def capabilities = super.capabilities - TestDB.capabilities.jdbcMetaGetFunctions
   }
 
