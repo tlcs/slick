@@ -68,13 +68,14 @@ trait OutputHelpers{
    * @param profile Slick profile that is imported in the generated package (e.g. scala.slick.driver.H2Driver)
    * @param pkg Scala package the generated code is placed in (a subfolder structure will be created within srcFolder)
    * @param container The name of a trait and an object the generated code will be placed in within the specified package.
+   * @param header Header which will be put on top of each generated file
    */
-  def writeToMultipleFiles(profile: String, folder: String, pkg: String, container: String = "Tables") {
+  def writeToMultipleFiles(profile: String, folder: String, pkg: String, container: String = "Tables", header: String = "") {
     // Write the container file (the file that contains the stand-alone object).
-    writeStringToFile(packageContainerCode(profile, pkg, container), folder, pkg, container + ".scala")
+    writeStringToFile(packageContainerCode(profile, pkg, container, header), folder, pkg, container + ".scala")
     // Write one file for each table.
     codePerTable.foreach {
-      case (tableName, tableCode) => writeStringToFile(packageTableCode(tableName, tableCode, pkg, container), folder, pkg, tableName + "Table.scala")
+      case (tableName, tableCode) => writeStringToFile(packageTableCode(tableName, tableCode, pkg, container, header), folder, pkg, tableName + "Schema.scala")
     }
   }
 
@@ -109,10 +110,12 @@ trait ${container}${parentType.map(t => s" extends $t").getOrElse("")} {
    * @param profile Slick profile that is imported in the generated package (e.g. scala.slick.driver.H2Driver)
    * @param pkg Scala package the generated code is placed in
    * @param container The name of a trait and an object the generated code will be placed in within the specified package.
+   * @param header Header which will be put on top of generated container code
    */
-  def packageContainerCode(profile: String, pkg: String, container: String = "Tables"): String = {
-    val mixinCode = codePerTable.keys.map(_+"Table").mkString("extends ", " with ", "")
+  def packageContainerCode(profile: String, pkg: String, container: String = "Tables", header : String = ""): String = {
+    val mixinCode = codePerTable.keys.map(_+"Schema").mkString("extends ", " with ", "")
     s"""
+${header}
 package ${pkg}
 // AUTO-GENERATED Slick data model
 /** Stand-alone Slick data model for immediate use */
@@ -127,7 +130,7 @@ trait ${container} ${mixinCode} {
   val profile: slick.driver.JdbcProfile
   import profile.api._
   ${indent(docWithCodeForDDL)}
-  
+
 }
       """.trim()
   }
@@ -139,15 +142,17 @@ trait ${container} ${mixinCode} {
    * @param tableCode : the generated code for the table.
    * @param pkg Scala package the generated code is placed in
    * @param container The name of the container
+   * @param header Header which will be put on top of generated table code
    */
-  def packageTableCode(tableName: String, tableCode: String, pkg: String, container: String): String = {
+  def packageTableCode(tableName: String, tableCode: String, pkg: String, container: String,  header: String =""): String = {
     s"""
+${header}
 package ${pkg}
 // AUTO-GENERATED Slick data model for table ${tableName}
-trait ${tableName}Table {
+trait ${tableName}Schema {
 
-  self:${container}  => 
-  
+  self:${container}  =>
+
   import profile.api._
   ${indent(tableCode)}
 }      
