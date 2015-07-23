@@ -72,10 +72,10 @@ trait OutputHelpers{
    */
   def writeToMultipleFiles(profile: String, folder: String, pkg: String, container: String = "Tables", header: String = "") {
     // Write the container file (the file that contains the stand-alone object).
-    writeStringToFile(packageContainerCode(profile, pkg, container, header), folder, pkg, container + ".scala")
+    // writeStringToFile(packageContainerCode(profile, pkg, container, header), folder, pkg, container + ".scala")
     // Write one file for each table.
     codePerTable.foreach {
-      case (tableName, tableCode) => writeStringToFile(packageTableCode(tableName, tableCode, pkg, container, header), folder, pkg, tableName + "Schema.scala")
+      case (tableName, tableCode) => writeStringToFile(packageTableCode(tableName, codePerTable.keySet, tableCode, pkg, container, profile, header), folder, pkg, tableName + "Schema.scala")
     }
   }
 
@@ -144,18 +144,27 @@ trait ${container} ${mixinCode} {
    * @param container The name of the container
    * @param header Header which will be put on top of generated table code
    */
-  def packageTableCode(tableName: String, tableCode: String, pkg: String, container: String,  header: String =""): String = {
+  def packageTableCode(tableName: String, tableNames:Set[String], tableCode: String, pkg: String, container: String, profile:String, header: String =""): String = {
+
+    val tableCodeExpanded = expandReferencesToOtherTables(tableCode)
+
     s"""
 ${header}
 package ${pkg}
 // AUTO-GENERATED Slick data model for table ${tableName}
-trait ${tableName}Schema {
+object ${tableName}Schema {
 
-  self:${container}  =>
+  val profile = $profile
 
   import profile.api._
-  ${indent(tableCode)}
+  ${indent(tableCodeExpanded)}
 }      
       """.trim()
   }
+
+  def expandReferencesToOtherTables(tableCode: String) : String = {
+    val foreignKeyRegex = """, (\w*)\)\(r =>"""
+    tableCode.replaceAll(foreignKeyRegex, ", $1Schema.$1)(r =>")
+  }
+
 }
