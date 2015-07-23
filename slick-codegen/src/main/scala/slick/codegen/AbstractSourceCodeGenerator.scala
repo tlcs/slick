@@ -24,17 +24,54 @@ abstract class AbstractSourceCodeGenerator(model: m.Model)
         "import slick.jdbc.{GetResult => GR}\n"
       } else ""
     ) +
-    "\n/** DDL for all tables. Call .create to execute. */" +
-    (
-      if(tables.length > 5)
-        "\nlazy val schema = Array(" + tables.map(_.TableValue.name + ".schema").mkString(", ") + ").reduceLeft(_ ++ _)"
-      else
-        "\nlazy val schema = " + tables.map(_.TableValue.name + ".schema").mkString(" ++ ")
-    ) +
+    docWithCodeForDDL +"\n" +
     "\n@deprecated(\"Use .schema instead of .ddl\", \"3.0\")"+
     "\ndef ddl = schema" +
     "\n\n" +
     tables.map(_.code.mkString("\n")).mkString("\n\n")
+  }
+
+  /**
+   * Generates statement code for the DDL creation.
+   * @group Basic customization overrides
+   */
+  def codeForDDL: String = {
+    if (tables.length > 5)
+      "\nlazy val schema = Array(" + tables.map(_.TableValue.name + ".schema").mkString(", ") + ").reduceLeft(_ ++ _)"
+    else
+      "\nlazy val schema = " + tables.map(_.TableValue.name + ".schema").mkString(" ++ ")
+  }
+  /**
+   * Generates scaladoc code for the DDL statement.
+   * @group Basic customization overrides
+   */
+  def docForDDL: String = "DDL for all tables. Call .create to execute."
+
+  /**
+   * Generates code for the DDL statement.
+   * @group Basic customization overrides
+   */
+  def docWithCodeForDDL : String = docWithCode(docForDDL,codeForDDL)
+
+  /** Generates a map that associates the table name with its generated code (not wrapped in a package yet). 
+   *  @group Basic customization overrides 
+   */
+  def codePerTable: Map[String,String] = {
+    tables.map(table => {
+      val before="import slick.model.ForeignKeyAction\n" +
+        (if (table.hlistEnabled) {
+          "import slick.collection.heterogeneous._\n" +
+            "import slick.collection.heterogeneous.syntax._\n"
+        }
+        else "") +
+        (if (table.PlainSqlMapper.enabled) {
+          "// NOTE: GetResult mappers for plain SQL are only generated for tables where Slick knows how to map the types of all columns.\n" +
+            "import slick.jdbc.{GetResult => GR}\n"
+        }
+        else "") 
+        
+      (table.TableValue.name,table.code.mkString(before,"\n",""))
+    }).toMap
   }
 
   protected def tuple(i: Int) = termName(s"_${i+1}")
