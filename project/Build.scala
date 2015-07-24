@@ -1,5 +1,5 @@
 import sbt._
-import Keys._
+import sbt.Keys._
 import Tests._
 import com.typesafe.sbt.site.SphinxSupport.{Sphinx, sphinxEnv, sphinxProperties}
 import com.typesafe.sbt.SbtSite.site
@@ -13,7 +13,7 @@ import de.johoop.testngplugin.TestNGPlugin._
 
 object SlickBuild extends Build {
 
-  val slickVersion = "3.0.0-multifiles-codegen"
+  val slickVersion = "3.0.0-multifilescodegen"
   val binaryCompatSlickVersion = "3.0.0" // Slick base version for binary compatibility checks
   val scalaVersions = Seq("2.10.5", "2.11.6")
 
