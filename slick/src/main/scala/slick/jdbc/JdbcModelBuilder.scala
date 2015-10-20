@@ -227,7 +227,7 @@ class JdbcModelBuilder(mTables: Seq[MTable], ignoreInvalidDefaults: Boolean)(imp
               case n => throw new SlickException(s"""Default value "$v" for Char column "$name" has wrong size""")
             }
           case (v,"String") if meta.typeName == "CHAR" => v.head // FIXME: check length
-          case (v,"scala.math.BigDecimal") => v // FIXME: probably we shouldn't use a string here
+          case (v,"scala.math.BigDecimal") => scala.math.BigDecimal(v) // FIXME: probably we shouldn't use a string here
           case (StringPattern(str),"String") => str
           case ("TRUE","Boolean")  => true
           case ("FALSE","Boolean") => false
